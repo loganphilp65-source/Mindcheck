@@ -1,0 +1,67 @@
+import { createClient } from '@supabase/supabase-js'
+
+const SUPABASE_URL = 'https://cjlulpecbimxpjzpcunv.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqbHVscGVjYmlteHBqenBjdW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNzE3NTYsImV4cCI6MjA5NTc0Nzc1Nn0.nIV2AhPfowPVzhABM7eGX3WvLoczgGma79JyTX_5Dg0'
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+export async function signUp(email, password, name) {
+  const { data, error } = await supabase.auth.signUp({
+    email, password, options: { data: { full_name: name } }
+  })
+  if (error) throw error
+  return data.user
+}
+
+export async function logIn(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data.user
+}
+
+export async function signInWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' })
+  if (error) throw error
+}
+
+export async function signInWithApple() {
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'apple' })
+  if (error) throw error
+}
+
+export async function logOut() {
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
+export async function getCurrentUser() {
+  const { data } = await supabase.auth.getUser()
+  return data.user
+}
+
+export function onAuthChange(callback) {
+  supabase.auth.onAuthStateChange((event, session) => {
+    callback(session?.user ?? null)
+  })
+}
+
+export async function saveMoodEntry(userId, mood, note) {
+  const { error } = await supabase
+    .from('mood_entries')
+    .insert({ user_id: userId, mood_value: mood, note: note, created_at: new Date() })
+  if (error) throw error
+}
+
+export async function getWeekMoods(userId) {
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const { data, error } = await supabase
+    .from('mood_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('created_at', sevenDaysAgo.toISOString())
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data
+}
+
