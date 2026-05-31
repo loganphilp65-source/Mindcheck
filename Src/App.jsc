@@ -1,0 +1,363 @@
+import { useState } from "react";
+
+const moods = [
+  { emoji: "😔", label: "Rough", value: 1, color: "#6B7DB3" },
+  { emoji: "😕", label: "Low", value: 2, color: "#8B9DC3" },
+  { emoji: "😐", label: "Okay", value: 3, color: "#A8B8D8" },
+  { emoji: "🙂", label: "Good", value: 4, color: "#7EC8A4" },
+  { emoji: "😊", label: "Great", value: 5, color: "#4CAF82" },
+];
+
+const weekData = [
+  { day: "Mon", value: 4, note: "Productive morning" },
+  { day: "Tue", value: 2, note: "Tired, skipped lunch" },
+  { day: "Wed", value: 3, note: "" },
+  { day: "Thu", value: 5, note: "Great call with team" },
+  { day: "Fri", value: 3, note: "Bit anxious" },
+  { day: "Sat", value: 4, note: "Relaxed day" },
+  { day: "Sun", value: 2, note: "Sunday dread" },
+];
+
+const insights = [
+  { icon: "📉", text: "You tend to feel low on Sundays — a common pattern.", type: "pattern" },
+  { icon: "☀️", text: "Your mornings are your strongest window.", type: "strength" },
+  { icon: "💬", text: "Social connection boosts your mood by ~40%.", type: "insight" },
+];
+
+const suggestions = [
+  { icon: "🌬️", title: "4-7-8 Breathing", duration: "3 min", tag: "anxiety" },
+  { icon: "🚶", title: "10-min walk outside", duration: "10 min", tag: "energy" },
+  { icon: "✍️", title: "Brain dump journal", duration: "5 min", tag: "clarity" },
+];
+
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .phone { width: 375px; min-height: 720px; background: #0F1117; border-radius: 48px; border: 1.5px solid #1E2230; overflow: hidden; position: relative; box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px #2A2E3F; transition: background 0.6s ease; }
+  .screen { padding: 52px 28px 32px; min-height: 720px; display: flex; flex-direction: column; transition: opacity 0.18s ease, transform 0.18s ease; }
+  .screen.out { opacity: 0; transform: translateY(8px); }
+  .screen.in { opacity: 1; transform: translateY(0); }
+  .notch { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 90px; height: 6px; background: #1E2230; border-radius: 3px; }
+  .label { font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #4A5068; font-weight: 500; }
+  .heading { font-family: 'DM Serif Display', serif; font-size: 30px; color: #E8ECF5; line-height: 1.15; margin: 10px 0 6px; }
+  .subtext { font-family: 'DM Sans', sans-serif; font-size: 14px; color: #5A6080; line-height: 1.6; font-weight: 300; }
+  .mood-grid { display: flex; justify-content: space-between; margin: 32px 0 20px; gap: 6px; }
+  .mood-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 4px; border-radius: 16px; border: 1.5px solid transparent; background: #171B27; cursor: pointer; transition: all 0.2s ease; }
+  .mood-btn:hover { background: #1D2133; transform: translateY(-2px); }
+  .mood-btn.selected { border-color: #4CAF82; background: #1A2820; }
+  .mood-emoji { font-size: 26px; }
+  .mood-label { font-family: 'DM Sans', sans-serif; font-size: 10px; color: #4A5068; font-weight: 500; }
+  .mood-btn.selected .mood-label { color: #7EC8A4; }
+  .btn-primary { width: 100%; padding: 16px; border-radius: 16px; border: none; background: linear-gradient(135deg, #4CAF82, #3A9B6F); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; letter-spacing: 0.02em; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(76,175,130,0.3); }
+  .btn-primary:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+  .btn-ghost { background: transparent; border: 1.5px solid #1E2230; color: #5A6080; padding: 14px; border-radius: 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; width: 100%; margin-top: 10px; }
+  .btn-ghost:hover { border-color: #2E3450; color: #8090B0; }
+  .btn-social { width: 100%; padding: 14px; border-radius: 14px; border: 1.5px solid #1E2230; background: #171B27; color: #C8D0E0; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 400; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; }
+  .btn-social:hover { border-color: #2E3450; background: #1D2133; }
+  .input { width: 100%; background: #171B27; border: 1.5px solid #1E2230; border-radius: 14px; color: #C8D0E0; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 300; padding: 14px 16px; outline: none; margin-bottom: 12px; transition: border-color 0.2s; }
+  .input:focus { border-color: #2E3870; }
+  .input::placeholder { color: #2E3450; }
+  .textarea { width: 100%; background: #171B27; border: 1.5px solid #1E2230; border-radius: 16px; color: #C8D0E0; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 300; line-height: 1.7; padding: 16px; resize: none; outline: none; margin: 20px 0; transition: border-color 0.2s; height: 120px; }
+  .textarea:focus { border-color: #2E3870; }
+  .textarea::placeholder { color: #2E3450; }
+  .divider { height: 1px; background: #1A1E2C; margin: 24px 0; }
+  .or-row { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+  .or-line { flex: 1; height: 1px; background: #1A1E2C; }
+  .or-text { font-family: 'DM Sans', sans-serif; font-size: 11px; color: #2E3450; letter-spacing: 0.1em; }
+  .insight-card { background: #171B27; border-radius: 16px; padding: 16px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 12px; border: 1px solid #1E2230; }
+  .insight-icon { font-size: 18px; margin-top: 1px; }
+  .insight-text { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #8090B0; line-height: 1.55; font-weight: 300; }
+  .suggestion-card { background: #171B27; border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; border: 1px solid #1E2230; cursor: pointer; transition: all 0.2s; }
+  .suggestion-card:hover { background: #1D2133; border-color: #2E3450; }
+  .suggestion-icon { font-size: 20px; }
+  .suggestion-info { flex: 1; }
+  .suggestion-title { font-family: 'DM Sans', sans-serif; font-size: 14px; color: #C8D0E0; font-weight: 500; }
+  .suggestion-meta { font-family: 'DM Sans', sans-serif; font-size: 12px; color: #4A5068; margin-top: 2px; }
+  .tag { background: #1E2230; color: #5A6080; font-family: 'DM Sans', sans-serif; font-size: 10px; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.08em; }
+  .tab-bar { display: flex; background: #171B27; border-radius: 14px; padding: 4px; margin-bottom: 20px; }
+  .tab-btn { flex: 1; padding: 8px; border-radius: 10px; border: none; background: transparent; color: #4A5068; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; letter-spacing: 0.04em; }
+  .tab-btn.active { background: #0F1117; color: #C8D0E0; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; margin: 16px 0 8px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; border-radius: 6px 6px 2px 2px; min-height: 4px; }
+  .bar-day { font-family: 'DM Sans', sans-serif; font-size: 10px; color: #3A4060; font-weight: 500; }
+  .bar-day.today { color: #4CAF82; }
+  .streak-row { display: flex; gap: 6px; margin: 16px 0 8px; }
+  .streak-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .success-check { font-size: 48px; text-align: center; margin: 20px 0 16px; animation: pop 0.4s ease; }
+  @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+  .bottom-nav { display: flex; justify-content: space-around; padding: 14px 0 8px; border-top: 1px solid #1A1E2C; margin-top: auto; }
+  .nav-btn { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0.4; transition: opacity 0.2s; }
+  .nav-btn.active { opacity: 1; }
+  .nav-icon { font-size: 18px; }
+  .nav-label { font-family: 'DM Sans', sans-serif; font-size: 9px; color: #5A6080; letter-spacing: 0.08em; text-transform: uppercase; }
+  .scroll-area { flex: 1; overflow-y: auto; }
+  .scroll-area::-webkit-scrollbar { display: none; }
+  .paywall-overlay { position: absolute; inset: 0; background: rgba(10,12,20,0.96); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; z-index: 10; border-radius: 48px; }
+  .pro-badge { background: linear-gradient(135deg, #4CAF82, #3A9B6F); color: white; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; padding: 5px 14px; border-radius: 20px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .pro-feature { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #8090B0; width: 100%; }
+  .pro-check { color: #4CAF82; font-size: 14px; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #4CAF82, #3A9B6F); display: flex; align-items: center; justify-content: center; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; color: white; }
+  .error-text { font-family: 'DM Sans', sans-serif; font-size: 12px; color: #E05555; margin-top: -6px; margin-bottom: 10px; }
+  .link-btn { background: none; border: none; color: #4CAF82; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; text-decoration: underline; padding: 0; }
+  .splash-logo { font-family: 'DM Serif Display', serif; font-size: 42px; color: #E8ECF5; margin-bottom: 8px; }
+  .splash-tagline { font-family: 'DM Sans', sans-serif; font-size: 15px; color: #4A5068; font-weight: 300; margin-bottom: 48px; text-align: center; line-height: 1.6; }
+`;
+
+export default function MindCheck() {
+  const [screen, setScreen] = useState("splash");
+  const [authMode, setAuthMode] = useState("login");
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [note, setNote] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [activeTab, setActiveTab] = useState("insights");
+  const [animIn, setAnimIn] = useState(true);
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  const bgColor = selectedMood ? moods.find((m) => m.value === selectedMood)?.color + "18" : "#0F1117";
+
+  const navigate = (s) => { setAnimIn(false); setTimeout(() => { setScreen(s); setAnimIn(true); }, 180); };
+
+  const handleAuth = () => {
+    setAuthError("");
+    if (!email.includes("@")) { setAuthError("Please enter a valid email."); return; }
+    if (password.length < 6) { setAuthError("Password must be at least 6 characters."); return; }
+    if (authMode === "signup" && !name.trim()) { setAuthError("Please enter your name."); return; }
+    const displayName = authMode === "signup" ? name.split(" ")[0] : email.split("@")[0];
+    setUser({ name: displayName, email });
+    navigate("checkin");
+  };
+
+  const handleSubmit = () => { setSubmitted(true); setTimeout(() => navigate("insights"), 1200); };
+
+  const handleLogout = () => { setUser(null); setEmail(""); setPassword(""); setName(""); setAuthError(""); navigate("splash"); };
+
+  const barMax = 5;
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Georgia', serif", padding: "20px" }}>
+      <style>{CSS}</style>
+      <div className="phone" style={{ background: screen === "checkin" ? bgColor : "#0F1117", transition: "background 0.5s" }}>
+        <div className="notch" />
+        {showPaywall && (
+          <div className="paywall-overlay">
+            <div className="pro-badge">✦ MindCheck Pro</div>
+            <h2 className="heading" style={{ textAlign: "center", fontSize: 26, marginBottom: 8 }}>Unlock your full<br /><em>mental picture</em></h2>
+            <p className="subtext" style={{ textAlign: "center", marginBottom: 24, fontSize: 13 }}>One month free, then $7.99/mo</p>
+            {["Unlimited mood history", "AI pattern analysis", "Personalised suggestions", "Export reports for your therapist"].map((f, i) => (
+              <div key={i} className="pro-feature"><span className="pro-check">✓</span> {f}</div>
+            ))}
+            <div style={{ height: 28 }} />
+            <button className="btn-primary" onClick={() => setShowPaywall(false)}>Start Free Trial</button>
+            <button className="btn-ghost" onClick={() => setShowPaywall(false)}>Maybe later</button>
+          </div>
+        )}
+        {screen === "splash" && (
+          <div className={`screen ${animIn ? "in" : "out"}`} style={{ alignItems: "center", justifyContent: "center" }}>
+            <div style={{ textAlign: "center", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ fontSize: 56, marginBottom: 16 }}>🧠</div>
+              <div className="splash-logo">MindCheck</div>
+              <p className="splash-tagline">Daily check-ins that learn<br />what makes you feel better.</p>
+            </div>
+            <button className="btn-primary" onClick={() => { setAuthMode("signup"); navigate("auth"); }}>Get started — it's free</button>
+            <button className="btn-ghost" onClick={() => { setAuthMode("login"); navigate("auth"); }}>I already have an account</button>
+          </div>
+        )}
+        {screen === "auth" && (
+          <div className={`screen ${animIn ? "in" : "out"}`}>
+            <button onClick={() => navigate("splash")} style={{ background: "none", border: "none", color: "#4A5068", cursor: "pointer", fontSize: 20, textAlign: "left", marginBottom: 16 }}>←</button>
+            <span className="label">{authMode === "login" ? "Welcome back" : "Create account"}</span>
+            <h2 className="heading" style={{ fontSize: 26, marginBottom: 24 }}>
+              {authMode === "login" ? <>Good to see<br /><em>you again</em></> : <>Start your<br /><em>wellness journey</em></>}
+            </h2>
+            <button className="btn-social"><span style={{ fontSize: 18 }}>G</span> Continue with Google</button>
+            <button className="btn-social"><span style={{ fontSize: 18 }}>🍎</span> Continue with Apple</button>
+            <div className="or-row"><div className="or-line" /><span className="or-text">OR</span><div className="or-line" /></div>
+            {authMode === "signup" && <input className="input" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />}
+            <input className="input" placeholder="Email address" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+            <input className="input" placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+            {authError && <p className="error-text">⚠ {authError}</p>}
+            <div style={{ flex: 1 }} />
+            <button className="btn-primary" onClick={handleAuth}>{authMode === "login" ? "Log in" : "Create account"}</button>
+            <div style={{ textAlign: "center", marginTop: 16 }}>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#4A5068" }}>{authMode === "login" ? "No account? " : "Already have one? "}</span>
+              <button className="link-btn" onClick={() => { setAuthMode(authMode === "login" ? "signup" : "login"); setAuthError(""); }}>{authMode === "login" ? "Sign up free" : "Log in"}</button>
+            </div>
+          </div>
+        )}
+        {screen === "checkin" && (
+          <div className={`screen ${animIn ? "in" : "out"}`}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span className="label">MindCheck</span>
+              {user && <div className="avatar">{user.name[0].toUpperCase()}</div>}
+            </div>
+            <h1 className="heading" style={{ marginTop: 32 }}>{user ? `Hey ${user.name},` : "Hey there,"}<br /><em>how are you feeling?</em></h1>
+            <p className="subtext" style={{ marginTop: 8 }}>Takes 2 minutes. No judgment.</p>
+            <div className="mood-grid">
+              {moods.map((m) => (
+                <button key={m.value} className={`mood-btn ${selectedMood === m.value ? "selected" : ""}`} onClick={() => setSelectedMood(m.value)}>
+                  <span className="mood-emoji">{m.emoji}</span>
+                  <span className="mood-label">{m.label}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{ flex: 1 }} />
+            <button className="btn-primary" disabled={!selectedMood} onClick={() => navigate("note")}>Continue →</button>
+            <button className="btn-ghost" onClick={() => navigate("insights")}>Skip to Dashboard</button>
+          </div>
+        )}
+        {screen === "note" && (
+          <div className={`screen ${animIn ? "in" : "out"}`}>
+            <button onClick={() => navigate("checkin")} style={{ background: "none", border: "none", color: "#4A5068", cursor: "pointer", fontSize: 20, textAlign: "left", marginBottom: 8 }}>←</button>
+            <span className="label">Optional note</span>
+            <h2 className="heading" style={{ fontSize: 24 }}>Anything on<br />your mind?</h2>
+            <p className="subtext" style={{ marginTop: 6 }}>A word, a sentence — whatever feels right.</p>
+            <textarea className="textarea" placeholder="e.g. 'Felt tired after the meeting...'" value={note} onChange={(e) => setNote(e.target.value)} />
+            <div style={{ flex: 1 }} />
+            {submitted ? (
+              <div style={{ textAlign: "center" }}>
+                <div className="success-check">✅</div>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#4CAF82", fontSize: 15 }}>Logged! Analyzing your week…</p>
+              </div>
+            ) : (
+              <>
+                <button className="btn-primary" onClick={handleSubmit}>Log Today's Check-in</button>
+                <button className="btn-ghost" onClick={handleSubmit}>Skip note</button>
+              </>
+            )}
+          </div>
+        )}
+        {screen === "insights" && (
+          <div className={`screen ${animIn ? "in" : "out"}`} style={{ paddingBottom: 0 }}>
+            <span className="label">Dashboard</span>
+            <h2 className="heading" style={{ fontSize: 24, marginBottom: 20 }}>Your <em>patterns</em></h2>
+            <div className="tab-bar">
+              {["insights", "history"].map((t) => (
+                <button key={t} className={`tab-btn ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
+                  {t === "insights" ? "✦ Insights" : "↗ History"}
+                </button>
+              ))}
+            </div>
+            <div className="scroll-area">
+              {activeTab === "insights" && (
+                <>
+                  <span className="label" style={{ display: "block", marginBottom: 10 }}>This Week's Patterns</span>
+                  {insights.map((ins, i) => (
+                    <div key={i} className="insight-card">
+                      <span className="insight-icon">{ins.icon}</span>
+                      <span className="insight-text">{ins.text}</span>
+                    </div>
+                  ))}
+                  <div className="divider" />
+                  <span className="label" style={{ display: "block", marginBottom: 12 }}>Suggested for You</span>
+                  {suggestions.map((s, i) => (
+                    <div key={i} className="suggestion-card" onClick={() => i === 2 && setShowPaywall(true)}>
+                      <span className="suggestion-icon">{s.icon}</span>
+                      <div className="suggestion-info">
+                        <div className="suggestion-title">{s.title}</div>
+                        <div className="suggestion-meta">{s.duration}</div>
+                      </div>
+                      <span className="tag">{i === 2 ? "🔒 pro" : s.tag}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 20 }}>
+                    <button className="btn-primary" onClick={() => setShowPaywall(true)}>✦ Upgrade to Pro — $7.99/mo</button>
+                  </div>
+                  <div style={{ height: 80 }} />
+                </>
+              )}
+              {activeTab === "history" && (
+                <>
+                  <span className="label" style={{ display: "block", marginBottom: 6 }}>7-Day Mood</span>
+                  <div className="bar-chart">
+                    {weekData.map((d, i) => {
+                      const mood = moods.find((m) => m.value === d.value);
+                      return (
+                        <div key={i} className="bar-col">
+                          <div className="bar" style={{ height: `${(d.value / barMax) * 100}%`, background: mood?.color || "#2E3450", opacity: i === 6 ? 1 : 0.6 }} />
+                          <span className={`bar-day ${i === 6 ? "today" : ""}`}>{d.day}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="divider" />
+                  <span className="label" style={{ display: "block", marginBottom: 12 }}>Streak</span>
+                  <div className="streak-row">
+                    {weekData.map((d, i) => (
+                      <div key={i} className="streak-dot" style={{ background: d.value >= 3 ? "#1A2820" : "#1A1C27", border: `1.5px solid ${d.value >= 3 ? "#2A4035" : "#1E2230"}` }}>
+                        <span style={{ fontSize: 13 }}>{d.value >= 3 ? "✓" : "·"}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="subtext" style={{ fontSize: 12, marginTop: 8 }}>5 of 7 days above baseline this week</p>
+                  <div className="divider" />
+                  <span className="label" style={{ display: "block", marginBottom: 10 }}>Recent Entries</span>
+                  {weekData.slice().reverse().map((d, i) => {
+                    const mood = moods.find((m) => m.value === d.value);
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #1A1E2C" }}>
+                        <span style={{ fontSize: 20 }}>{mood?.emoji}</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#8090B0", fontWeight: 300 }}>{d.note || "No note added"}</span>
+                        </div>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#2E3450" }}>{d.day}</span>
+                      </div>
+                    );
+                  })}
+                  <div style={{ height: 80 }} />
+                </>
+              )}
+            </div>
+            <div className="bottom-nav">
+              {[{ icon: "🏠", label: "Home", s: "checkin" }, { icon: "📊", label: "Insights", s: "insights" }, { icon: "⚙️", label: "Settings", s: "settings" }].map((n) => (
+                <button key={n.label} className={`nav-btn ${screen === n.s ? "active" : ""}`} onClick={() => n.s && navigate(n.s)}>
+                  <span className="nav-icon">{n.icon}</span>
+                  <span className="nav-label">{n.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {screen === "settings" && (
+          <div className={`screen ${animIn ? "in" : "out"}`}>
+            <span className="label">Account</span>
+            <h2 className="heading" style={{ fontSize: 26, marginBottom: 24 }}>Settings</h2>
+            {user && (
+              <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#171B27", borderRadius: 16, padding: 16, marginBottom: 24, border: "1px solid #1E2230" }}>
+                <div className="avatar" style={{ width: 48, height: 48, fontSize: 18 }}>{user.name[0].toUpperCase()}</div>
+                <div>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "#C8D0E0", fontWeight: 500 }}>{user.name}</div>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#4A5068", marginTop: 2 }}>{user.email}</div>
+                </div>
+              </div>
+            )}
+            {[{ icon: "🔔", label: "Daily reminder", value: "9:00 AM" }, { icon: "🔒", label: "Privacy", value: "Data encrypted" }, { icon: "💳", label: "Subscription", value: "Free plan" }, { icon: "❓", label: "Help & Support", value: "" }].map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #1A1E2C", cursor: "pointer" }}>
+                <span style={{ fontSize: 18 }}>{item.icon}</span>
+                <span style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#C8D0E0" }}>{item.label}</span>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#4A5068" }}>{item.value} ›</span>
+              </div>
+            ))}
+            <div style={{ flex: 1 }} />
+            <button className="btn-ghost" style={{ color: "#E05555", borderColor: "#2A1A1A" }} onClick={handleLogout}>Log out</button>
+            <div className="bottom-nav">
+              {[{ icon: "🏠", label: "Home", s: "checkin" }, { icon: "📊", label: "Insights", s: "insights" }, { icon: "⚙️", label: "Settings", s: "settings" }].map((n) => (
+                <button key={n.label} className={`nav-btn ${screen === n.s ? "active" : ""}`} onClick={() => navigate(n.s)}>
+                  <span className="nav-icon">{n.icon}</span>
+                  <span className="nav-label">{n.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
